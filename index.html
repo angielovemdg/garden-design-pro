@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header -->
@@ -234,9 +235,12 @@
 
             <!-- Preset Elements -->
             <div class="tool-section">
-                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
-                    <i class="fas fa-cube mr-2 text-orange-600"></i>Preset Elements
-                </h3>
+                <div class="flex justify-between items-center mb-3 cursor-pointer" id="presetElementsToggle">
+                    <h3 class="font-semibold text-gray-800 flex items-center">
+                        <i class="fas fa-cube mr-2 text-orange-600"></i>Preset Elements
+                    </h3>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform" id="presetElementsIcon"></i>
+                </div>
                 <div class="space-y-2" id="presetElements">
                     <!-- Preset elements will be populated dynamically -->
                 </div>
@@ -268,6 +272,11 @@
                         <textarea id="projectAddress" placeholder="Enter project address" rows="2"
                                   class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
                     </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-700">Email Address:</label>
+                        <input type="email" id="clientEmail" placeholder="Enter client email" 
+                               class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
             </div>
 
@@ -279,7 +288,13 @@
                     </h3>
                     <div class="flex space-x-2">
                         <button id="generateQuote" class="bg-green-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-green-700 transition-colors">
-                            <i class="fas fa-file-pdf mr-1"></i>PDF
+                            <i class="fas fa-file-pdf mr-1"></i>Quote PDF
+                        </button>
+                        <button id="savePlanAsPDF" class="bg-orange-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-map mr-1"></i>Plan PDF
+                        </button>
+                        <button id="emailQuote" class="bg-purple-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-envelope mr-1"></i>Email
                         </button>
                         <button id="exportProject" class="bg-blue-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-blue-700 transition-colors">
                             <i class="fas fa-download mr-1"></i>Export

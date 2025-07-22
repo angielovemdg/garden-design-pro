@@ -33,6 +33,8 @@ class GardenDesignTool {
         this.subtractMode = false;
         this.eraserMode = false;
         this.deductMode = false;
+        this.isDrawingRectangle = false;
+        this.rectangleStart = null;
         this.pdfDocument = null;
         this.currentPdfPage = 0;
         this.selectedState = 'QLD';
@@ -357,7 +359,12 @@ class GardenDesignTool {
 
         // Generate quote and export
         document.getElementById('generateQuote').addEventListener('click', () => this.generatePDF());
+        document.getElementById('emailQuote').addEventListener('click', () => this.emailQuote());
         document.getElementById('exportProject').addEventListener('click', () => this.exportProject());
+        document.getElementById('savePlanAsPDF').addEventListener('click', () => this.savePlanAsPDF());
+
+        // Preset elements toggle
+        document.getElementById('presetElementsToggle').addEventListener('click', () => this.togglePresetElements());
 
         // Help modal
         document.getElementById('helpBtn').addEventListener('click', () => this.showHelpModal());
@@ -910,6 +917,18 @@ class GardenDesignTool {
 
         const coords = this.getCanvasCoordinates(e);
         this.showElementInfo(coords.x, coords.y);
+
+        // Handle rectangular drawing preview
+        if (this.isDrawingRectangle && this.rectangleStart && this.isDrawing) {
+            const currentPoint = coords;
+            this.currentPath = [
+                this.rectangleStart,
+                { x: currentPoint.x, y: this.rectangleStart.y },
+                currentPoint,
+                { x: this.rectangleStart.x, y: currentPoint.y }
+            ];
+            this.redraw();
+        }
     }
 
     handleMouseUp(e) {
@@ -920,6 +939,13 @@ class GardenDesignTool {
             } else {
                 this.canvas.style.cursor = 'crosshair';
             }
+        }
+
+        // Finish rectangular drawing
+        if (this.isDrawingRectangle && this.isDrawing) {
+            this.isDrawingRectangle = false;
+            this.rectangleStart = null;
+            this.finishDrawing();
         }
     }
 
@@ -1022,6 +1048,8 @@ class GardenDesignTool {
         if (this.isAreaTool(this.currentTool)) {
             if (!this.isDrawing) {
                 this.startArea(x, y);
+                this.isDrawingRectangle = true;
+                this.rectangleStart = { x, y };
             } else {
                 // Check if point is close to the first point to auto-close
                 if (this.currentPath.length > 2) {
@@ -2195,7 +2223,7 @@ class GardenDesignTool {
                 items.forEach(item => {
                     total += item.total;
                     quoteHTML += `<div class="flex justify-between text-xs mb-1 p-2 bg-gray-50 rounded">
-                        <span class="truncate mr-2">${item.description}</span>
+                        <span class="truncate mr-2">${item.description} (${item.quantity} ${item.unit})</span>
                         <span class="whitespace-nowrap font-medium">$${item.total.toFixed(0)}</span>
                     </div>`;
                 });
@@ -2297,8 +2325,7 @@ class GardenDesignTool {
         const quote = {
             'Area Elements': [],
             'Linear Elements': [],
-            'Items': [],
-            'Additional Items': []
+            'Items': []
         };
         
         const elementCounts = {};
@@ -2316,15 +2343,7 @@ class GardenDesignTool {
             const rate = this.getElementRate(element);
             const description = this.getElementDescription(element);
             
-            if (element.type === 'trees') {
-                quote['Items'].push({
-                    description: description,
-                    quantity: elements.length,
-                    unit: 'ea',
-                    rate: rate,
-                    total: elements.length * rate
-                });
-            } else if (['pergola', 'pool', 'spa'].includes(element.type)) {
+            if (['trees', 'shrubs', 'lighting', 'seating', 'water-feature', 'outdoor-kitchen', 'planter', 'pergola', 'pool', 'spa'].includes(element.type)) {
                 quote['Items'].push({
                     description: description,
                     quantity: elements.length,
@@ -2936,6 +2955,310 @@ class GardenDesignTool {
         } else {
             overlay.classList.add('hidden');
         }
+    }
+
+    togglePresetElements() {
+        const presetElements = document.getElementById('presetElements');
+        const icon = document.getElementById('presetElementsIcon');
+        
+        if (presetElements.style.display === 'none') {
+            presetElements.style.display = 'block';
+            icon.style.transform = 'rotate(0deg)';
+        } else {
+            presetElements.style.display = 'none';
+            icon.style.transform = 'rotate(-90deg)';
+        }
+    }
+
+    emailQuote() {
+        const clientEmail = document.getElementById('clientEmail').value.trim();
+        const clientName = document.getElementById('clientName').value.trim();
+        
+        if (!clientEmail) {
+            this.showNotification('Please enter a client email address', 'error');
+            return;
+        }
+        
+        if (!clientName) {
+            this.showNotification('Please enter a client name', 'error');
+            return;
+        }
+        
+        if (this.elements.length === 0) {
+            this.showNotification('No elements to quote. Please add some elements first.', 'error');
+            return;
+        }
+        
+        // Generate quote content
+        const quote = this.generateQuote();
+        let emailContent = `Dear ${clientName},\n\n`;
+        emailContent += `Thank you for your interest in our garden design services. Please find below your initial garden construction estimate:\n\n`;
+        
+        let total = 0;
+        Object.entries(quote).forEach(([category, items]) => {
+            if (items.length > 0) {
+                emailContent += `${category}:\n`;
+                items.forEach(item => {
+                    total += item.total;
+                    emailContent += `- ${item.description} (${item.quantity} ${item.unit}): $${item.total.toFixed(0)}\n`;
+                });
+                emailContent += '\n';
+            }
+        });
+        
+        const gst = total * 0.1;
+        const finalTotal = total + gst;
+        
+        emailContent += `Subtotal: $${total.toFixed(0)}\n`;
+        emailContent += `GST (10%): $${gst.toFixed(0)}\n`;
+        emailContent += `Total (Including GST): $${finalTotal.toFixed(0)}\n\n`;
+        
+        emailContent += `This is an initial estimate based on the preliminary design concepts. The final pricing will be confirmed upon development of accurate designs.\n\n`;
+        emailContent += `Best regards,\nMood Design Group\nAngie Li\n0450 107 606\nadmin@moondesigngroup.com.au`;
+        
+        // Create mailto link
+        const subject = encodeURIComponent('Garden Design Quote - Initial Estimate');
+        const body = encodeURIComponent(emailContent);
+        const mailtoLink = `mailto:${clientEmail}?subject=${subject}&body=${body}`;
+        
+        // Open default email client
+        window.open(mailtoLink);
+        
+        this.showNotification('Email client opened with quote details', 'success');
+    }
+
+    savePlanAsPDF() {
+        if (this.elements.length === 0) {
+            this.showNotification('No elements to save. Please add some elements to the plan first.', 'error');
+            return;
+        }
+
+        this.showLoading(true);
+        
+        try {
+            // Create a temporary canvas for PDF generation
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Set canvas size for PDF (A4 size at 96 DPI)
+            const pdfWidth = 794; // A4 width in pixels at 96 DPI
+            const pdfHeight = 1123; // A4 height in pixels at 96 DPI
+            
+            tempCanvas.width = pdfWidth;
+            tempCanvas.height = pdfHeight;
+            
+            // Fill white background
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, pdfWidth, pdfHeight);
+            
+            // Calculate scale to fit the design in the PDF
+            const canvasBounds = this.getCanvasBounds();
+            const designWidth = canvasBounds.maxX - canvasBounds.minX;
+            const designHeight = canvasBounds.maxY - canvasBounds.minY;
+            
+            // Add padding
+            const padding = 50;
+            const availableWidth = pdfWidth - (padding * 2);
+            const availableHeight = pdfHeight - (padding * 2);
+            
+            // Calculate scale to fit design in PDF
+            const scaleX = availableWidth / designWidth;
+            const scaleY = availableHeight / designHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 1
+            
+            // Calculate offset to center the design
+            const offsetX = (pdfWidth - (designWidth * scale)) / 2;
+            const offsetY = (pdfHeight - (designHeight * scale)) / 2;
+            
+            // Apply transformations
+            tempCtx.save();
+            tempCtx.translate(offsetX, offsetY);
+            tempCtx.scale(scale, scale);
+            tempCtx.translate(-canvasBounds.minX, -canvasBounds.minY);
+            
+            // Draw background image if exists
+            if (this.backgroundImage) {
+                tempCtx.globalAlpha = 0.3; // Make background semi-transparent
+                tempCtx.drawImage(this.backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+                tempCtx.globalAlpha = 1.0;
+            }
+            
+            // Draw all elements
+            this.elements.forEach(element => {
+                this.drawElementForPDF(tempCtx, element);
+            });
+            
+            // Draw scale indicator if scale is set
+            if (this.scaleSet) {
+                this.drawScaleIndicatorForPDF(tempCtx, offsetX, offsetY, scale);
+            }
+            
+            // Draw legend
+            this.drawLegendForPDF(tempCtx, pdfWidth, pdfHeight);
+            
+            tempCtx.restore();
+            
+            // Convert canvas to PDF using jsPDF
+            this.convertCanvasToPDF(tempCanvas, 'Garden Design Plan');
+            
+        } catch (error) {
+            console.error('Error saving plan as PDF:', error);
+            this.showNotification('Error saving plan as PDF. Please try again.', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    getCanvasBounds() {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        
+        this.elements.forEach(element => {
+            if (element.path) {
+                element.path.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxX = Math.max(maxX, point.x);
+                    maxY = Math.max(maxY, point.y);
+                });
+            } else if (element.x !== undefined && element.y !== undefined) {
+                const width = element.width || 50;
+                const height = element.height || 50;
+                minX = Math.min(minX, element.x);
+                minY = Math.min(minY, element.y);
+                maxX = Math.max(maxX, element.x + width);
+                maxY = Math.max(maxY, element.y + height);
+            }
+        });
+        
+        // If no elements, use canvas size
+        if (minX === Infinity) {
+            minX = 0;
+            minY = 0;
+            maxX = this.canvas.width;
+            maxY = this.canvas.height;
+        }
+        
+        return { minX, minY, maxX, maxY };
+    }
+
+    drawElementForPDF(ctx, element) {
+        const color = this.getElementColor(element.type, 0.8);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        
+        if (element.path && element.path.length > 0) {
+            // Draw path-based elements
+            ctx.beginPath();
+            ctx.moveTo(element.path[0].x, element.path[0].y);
+            for (let i = 1; i < element.path.length; i++) {
+                ctx.lineTo(element.path[i].x, element.path[i].y);
+            }
+            if (this.isAreaTool(element.type)) {
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.stroke();
+            }
+        } else if (element.x !== undefined && element.y !== undefined) {
+            // Draw point-based elements
+            const size = element.diameter || 20;
+            ctx.beginPath();
+            ctx.arc(element.x, element.y, size / 2, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    drawScaleIndicatorForPDF(ctx, offsetX, offsetY, scale) {
+        const indicatorSize = 100 * scale;
+        const indicatorX = offsetX + 20;
+        const indicatorY = offsetY + 20;
+        
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `${12 * scale}px Arial`;
+        ctx.fillStyle = '#000000';
+        
+        // Draw scale bar
+        ctx.beginPath();
+        ctx.moveTo(indicatorX, indicatorY);
+        ctx.lineTo(indicatorX + indicatorSize, indicatorY);
+        ctx.stroke();
+        
+        // Draw scale text
+        ctx.fillText(`Scale: 1:${Math.round(1/this.scale)}`, indicatorX, indicatorY + 15 * scale);
+        ctx.fillText(`${this.scale}m`, indicatorX + indicatorSize + 5 * scale, indicatorY + 5 * scale);
+        
+        ctx.restore();
+    }
+
+    drawLegendForPDF(ctx, pdfWidth, pdfHeight) {
+        const legendX = pdfWidth - 200;
+        const legendY = 50;
+        const itemHeight = 20;
+        let currentY = legendY;
+        
+        ctx.save();
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#000000';
+        ctx.fillText('Legend:', legendX, currentY);
+        currentY += 25;
+        
+        // Get unique element types
+        const elementTypes = [...new Set(this.elements.map(el => el.type))];
+        
+        elementTypes.forEach(type => {
+            const color = this.getElementColor(type, 0.8);
+            ctx.fillStyle = color;
+            ctx.fillRect(legendX, currentY, 15, 15);
+            ctx.fillStyle = '#000000';
+            ctx.fillText(this.getElementDescription({ type }), legendX + 20, currentY + 12);
+            currentY += itemHeight;
+        });
+        
+        ctx.restore();
+    }
+
+    convertCanvasToPDF(canvas, filename) {
+        // Use jsPDF to convert canvas to PDF
+        const { jsPDF } = window.jspdf;
+        
+        if (!jsPDF) {
+            // Fallback: download as image
+            this.downloadCanvasAsImage(canvas, filename);
+            return;
+        }
+        
+        const pdf = new jsPDF('p', 'pt', 'a4');
+        const imgData = canvas.toDataURL('image/png');
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, 595.28, 841.89); // A4 size in points
+        
+        // Add title
+        pdf.setFontSize(16);
+        pdf.text('Garden Design Plan', 40, 30);
+        
+        // Add date
+        pdf.setFontSize(10);
+        pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 40, 50);
+        
+        // Add client info if available
+        const clientName = document.getElementById('clientName').value;
+        if (clientName) {
+            pdf.text(`Client: ${clientName}`, 40, 65);
+        }
+        
+        pdf.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+        this.showNotification('Plan saved as PDF successfully', 'success');
+    }
+
+    downloadCanvasAsImage(canvas, filename) {
+        const link = document.createElement('a');
+        link.download = `${filename}_${new Date().toISOString().split('T')[0]}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+        this.showNotification('Plan saved as image (PDF library not available)', 'info');
     }
 }
 
