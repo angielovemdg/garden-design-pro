@@ -1,0 +1,642 @@
+/* Custom CSS for Garden Design Pro */
+
+.canvas-container {
+    position: relative;
+    border: 2px solid #e5e7eb;
+    background: white;
+    cursor: crosshair;
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+.drawing-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+}
+
+.measurement-label {
+    position: absolute;
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+}
+
+.element-info {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 20;
+    display: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    max-width: 200px;
+    word-wrap: break-word;
+}
+
+.drawing-measurements {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.drawing-measurement {
+    position: absolute;
+    background: rgba(34, 197, 94, 0.9);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px);
+}
+
+.edit-mode-indicator {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(245, 158, 11, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    z-index: 30;
+}
+
+.preset-item {
+    cursor: grab;
+    transition: all 0.2s ease;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: white;
+}
+
+.preset-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+}
+
+.preset-item:active {
+    cursor: grabbing;
+    transform: translateY(0);
+}
+
+.quote-section {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.quote-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.quote-section::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.quote-section::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.quote-section::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.zoom-btn {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+}
+
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.zoom-btn:active {
+    transform: scale(0.95);
+}
+
+.drawing-status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 30;
+}
+
+.status-indicator {
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+.tool-section {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.tool-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.compact-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+}
+
+.compact-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.preset-config {
+    display: none;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+}
+
+.preset-config input {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease;
+}
+
+.preset-config input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Enhanced Element Colors with Different Shades */
+.element-colors {
+    --driveway-exposed-aggregate: #6b7280;
+    --driveway-plain-concrete: #9ca3af;
+    --driveway-patterned-concrete: #7c3aed;
+    --driveway-colored-concrete: #dc2626;
+    
+    --plain-standard-concrete: #9ca3af;
+    --plain-polished-concrete: #6b7280;
+    --plain-textured-concrete: #78716c;
+    
+    --paving-brick: #dc2626;
+    --paving-stone: #92400e;
+    --paving-concrete-pavers: #a16207;
+    --paving-travertine: #c2410c;
+    
+    --decking-treated-pine: #a16207;
+    --decking-hardwood: #92400e;
+    --decking-composite: #78350f;
+    --decking-bamboo: #713f12;
+    
+    --garden-beds-mulched: #16a34a;
+    --garden-beds-planted: #15803d;
+    --garden-beds-rock: #166534;
+    --garden-beds-raised: #14532d;
+    
+    --lawn-turf: #22c55e;
+    --lawn-seed: #16a34a;
+    --lawn-premium: #15803d;
+    --lawn-artificial: #166534;
+    
+    --shed-garden: #92400e;
+    --shed-storage: #78350f;
+    --shed-workshop: #713f12;
+    --shed-custom: #451a03;
+    
+    --fence-colorbond: #4b5563;
+    --fence-timber: #6b7280;
+    --fence-brick: #374151;
+    --fence-rendered: #1f2937;
+    
+    --stairs-concrete: #a8a29e;
+    --stairs-timber: #78716c;
+    --stairs-stone: #57534e;
+    --stairs-brick: #44403c;
+    
+    --trees: #16a34a;
+    --lighting: #fbbf24;
+    --seating: #7c3aed;
+    --water-feature: #0891b2;
+    --outdoor-kitchen: #dc2626;
+    --pergola: #ea580c;
+    --pool: #3b82f6;
+    --spa: #92400e;
+}
+
+/* Edit Mode Styles */
+.edit-mode .canvas-container {
+    cursor: pointer;
+}
+
+.edit-mode .drawing-canvas {
+    cursor: pointer;
+}
+
+/* Hand Tool Styles */
+.hand-mode .canvas-container {
+    cursor: grab;
+}
+
+.hand-mode .canvas-container:active {
+    cursor: grabbing;
+}
+
+/* Ruler Tool Styles */
+.ruler-mode .canvas-container {
+    cursor: crosshair;
+}
+
+.ruler-line {
+    position: absolute;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.ruler-line svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.ruler-measurement {
+    position: absolute;
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 16;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px);
+}
+
+/* Scale Status Indicator */
+.scale-status {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(34, 197, 94, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(4px);
+    z-index: 30;
+    display: none;
+}
+
+/* Area Subtraction Mode */
+.subtract-mode .canvas-container {
+    cursor: crosshair;
+}
+
+.subtract-mode .drawing-canvas {
+    cursor: crosshair;
+}
+
+.edit-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: move;
+    z-index: 25;
+    transition: all 0.2s ease;
+}
+
+.edit-point:hover {
+    transform: scale(1.5);
+    background: #dc2626;
+}
+
+.edit-point.selected {
+    background: #3b82f6;
+    border-color: #1d4ed8;
+}
+
+.element-selected {
+    filter: brightness(1.2) saturate(1.2);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+    .zoom-controls {
+        top: 5px;
+        right: 5px;
+    }
+    
+    .zoom-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 12px;
+    }
+    
+    .status-indicator {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+    
+    .edit-mode-indicator {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .tool-section {
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .preset-config {
+        padding: 0.5rem;
+    }
+}
+
+/* Custom scrollbar for elements list */
+#elementsList::-webkit-scrollbar {
+    width: 4px;
+}
+
+#elementsList::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 2px;
+}
+
+#elementsList::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+#elementsList::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Animation for new elements */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.element-item {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Tooltip styles */
+.tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.tooltip:hover::after {
+    opacity: 1;
+}
+
+/* Button hover effects */
+.btn-hover {
+    transition: all 0.2s ease;
+}
+
+.btn-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading animation */
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Success/Error states */
+.success {
+    background-color: #dcfce7;
+    border-color: #22c55e;
+    color: #166534;
+}
+
+.error {
+    background-color: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.warning {
+    background-color: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+/* Focus styles for accessibility */
+button:focus,
+input:focus,
+select:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .canvas-container {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .element-info {
+        background: rgba(0, 0, 0, 0.9);
+    }
+    
+    .zoom-btn {
+        background: rgba(31, 41, 55, 0.95);
+        border-color: #4b5563;
+        color: white;
+    }
+    
+    .zoom-btn:hover {
+        background: rgba(31, 41, 55, 1);
+    }
+    
+    .edit-point {
+        border-color: #1f2937;
+    }
+}
+
+/* Rate configuration styles */
+.rate-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.rate-option:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+.rate-option-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.rate-option-title {
+    font-weight: 600;
+    color: #374151;
+}
+
+.rate-option-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+}
+
+/* Element list improvements */
+.element-list-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.element-list-item:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+.element-list-item.selected {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.element-list-item .element-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.element-list-item .element-action-btn {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.element-list-item .edit-btn {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.element-list-item .edit-btn:hover {
+    background-color: #2563eb;
+}
+
+.element-list-item .delete-btn {
+    background-color: #ef4444;
+    color: white;
+}
+
+.element-list-item .delete-btn:hover {
+    background-color: #dc2626;
+} 

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garden Design Pro - Interactive Planning Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-seedling text-green-600 text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">Garden Design Pro</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-600">
+                        <i class="fas fa-ruler-combined mr-1"></i>
+                        Scale: <span id="scaleDisplay" class="font-medium">Not set</span>
+                    </div>
+                    <button id="helpBtn" class="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-question-circle mr-1"></i>Help
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex h-[calc(100vh-4rem)]">
+        <!-- Drawing Area (Left) - Enlarged -->
+        <div class="flex-1 p-4">
+            <div class="bg-white rounded-lg shadow-md h-full flex flex-col">
+                <div class="flex-1 relative">
+                    <div class="canvas-container w-full h-full">
+                        <canvas id="drawingCanvas" class="drawing-canvas"></canvas>
+                        <div id="measurementLabels"></div>
+                        <div id="elementInfo" class="element-info"></div>
+                        <div id="drawingMeasurements" class="drawing-measurements"></div>
+                        
+                        <!-- Enhanced Zoom Controls -->
+                                    <div class="zoom-controls">
+                <button class="zoom-btn" id="handTool" title="Hand Tool - Move Plan">
+                    <i class="fas fa-hand-paper"></i>
+                </button>
+                <button class="zoom-btn" id="rulerTool" title="Ruler Tool">
+                    <i class="fas fa-ruler-combined"></i>
+                </button>
+                <button class="zoom-btn" id="eraserTool" title="Eraser Tool">
+                    <i class="fas fa-eraser"></i>
+                </button>
+                <button class="zoom-btn" id="zoomReset" title="Reset View">
+                    <i class="fas fa-home"></i>
+                </button>
+                <button class="zoom-btn" id="zoomFit" title="Fit to Screen">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+                        
+                        <!-- Drawing Status -->
+                        <div class="drawing-status">
+                            <div id="drawingStatus" class="status-indicator hidden">
+                                <i class="fas fa-draw-polygon mr-2"></i>
+                                <span id="statusText">Drawing...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Edit Mode Indicator -->
+                        <div id="editModeIndicator" class="edit-mode-indicator hidden">
+                            <i class="fas fa-edit mr-2"></i>
+                            <span>Edit Mode - Drag points to move</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools Panel (Right) - Reorganized -->
+        <div class="w-96 p-4 bg-gray-50 overflow-y-auto">
+            <!-- File Upload -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-upload mr-2 text-blue-600"></i>Upload Plan
+                </h3>
+                <div class="space-y-2">
+                    <input type="file" id="fileUpload" accept=".pdf,.jpg,.jpeg,.png" 
+                           class="w-full text-sm text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors">
+                    <div class="text-xs text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Supported formats: PDF, JPG, PNG
+                    </div>
+                    
+                    <!-- PDF Page Selection -->
+                    <div id="pdfPageSelection" class="hidden space-y-2">
+                        <label class="text-xs font-medium text-gray-700">Select PDF Page:</label>
+                        <select id="pdfPageSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <!-- Pages will be populated dynamically -->
+                        </select>
+                        <button id="loadPdfPage" class="w-full bg-blue-600 text-white py-2 px-3 rounded-md text-sm hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-eye mr-1"></i>Load Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scale Setting -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-ruler mr-2 text-green-600"></i>Scale Plan
+                </h3>
+                <div class="space-y-3">
+                    <button id="scaleBtn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md text-sm hover:bg-green-700 transition-colors">
+                        <i class="fas fa-ruler mr-1"></i>Set Scale
+                    </button>
+                    
+                    <!-- Scale Input Modal -->
+                    <div id="scaleInputModal" class="hidden space-y-2">
+                        <label class="text-xs font-medium text-gray-700">Enter actual distance in meters:</label>
+                        <div class="flex space-x-2">
+                            <input type="number" id="scaleLength" placeholder="Distance (m)" 
+                                   class="flex-1 compact-input border rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                            <button id="confirmScale" class="bg-green-600 text-white py-2 px-4 rounded-md text-sm hover:bg-green-700 transition-colors">
+                                <i class="fas fa-check mr-1"></i>Confirm
+                            </button>
+                        </div>
+                        <button id="cancelScale" class="w-full bg-gray-500 text-white py-1 px-3 rounded-md text-sm hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-times mr-1"></i>Cancel
+                        </button>
+                    </div>
+                    
+                    <button id="rescaleBtn" class="w-full bg-yellow-600 text-white py-2 px-3 rounded-md text-sm hover:bg-yellow-700 transition-colors">
+                        <i class="fas fa-redo mr-1"></i>Re-scale
+                    </button>
+                </div>
+            </div>
+
+            <!-- Drawing Tools -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-pencil-alt mr-2 text-purple-600"></i>Drawing Tools
+                </h3>
+                <div class="space-y-3">
+                    <select id="toolSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                        <option value="select">Select/Move</option>
+                        <option value="edit">Edit Elements</option>
+                        <option value="preset">Preset Element</option>
+                        <option value="hand">Hand Tool</option>
+                        <option value="ruler">Ruler Tool</option>
+                        <optgroup label="Linear Elements">
+                            <option value="fence-boundary">Fence - Boundary</option>
+                            <option value="fence-front">Fence - Front</option>
+                            <option value="pool-fence">Pool Fence</option>
+                            <option value="garden-edge">Garden Edge</option>
+                            <option value="screen">Screen</option>
+                            <option value="retaining-wall">Retaining Wall</option>
+                            <option value="stairs">Stairs</option>
+                        </optgroup>
+                        <optgroup label="Area Elements">
+                            <option value="driveway-concrete">Driveway Concrete</option>
+                            <option value="plain-concrete">Plain Concrete</option>
+                            <option value="paving">Paving</option>
+                            <option value="decking">Decking</option>
+                            <option value="garden-beds">Garden Beds</option>
+                            <option value="lawn">Lawn</option>
+                            <option value="shed">Shed</option>
+                        </optgroup>
+                        <optgroup label="Items">
+                            <option value="seating">Seating</option>
+                            <option value="water-feature">Water Feature</option>
+                            <option value="outdoor-kitchen">Outdoor Kitchen</option>
+                            <option value="trees">Trees</option>
+                            <option value="shrubs">Shrubs</option>
+                            <option value="lighting">Lighting</option>
+                            <option value="planter">Planter</option>
+                        </optgroup>
+                    </select>
+                    
+                    <!-- Sub-type Selection -->
+                    <div id="subtypeOptions" class="hidden">
+                        <select id="subtypeSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                            <!-- Options populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Height Options -->
+                    <div id="heightOptions" class="hidden">
+                        <select id="heightSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                            <option value="100">100mm</option>
+                            <option value="200">200mm</option>
+                            <option value="300">300mm</option>
+                            <option value="600">600mm</option>
+                            <option value="900">900mm</option>
+                            <option value="1200">1200mm</option>
+                            <option value="1800">1800mm</option>
+                        </select>
+                    </div>
+
+                    <!-- Stairs Length Options -->
+                    <div id="stairsLengthOptions" class="hidden">
+                        <select id="stairsLengthSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                            <option value="600">600mm</option>
+                            <option value="1000">1.0m</option>
+                            <option value="1200">1.2m</option>
+                            <option value="1500">1.5m</option>
+                        </select>
+                    </div>
+
+                    <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded-md">
+                        <i class="fas fa-keyboard mr-1"></i>
+                        <strong>Keyboard shortcuts:</strong><br>
+                        • Enter: Finish drawing<br>
+                        • Esc: Cancel drawing<br>
+                        • Backspace: Remove last point<br>
+                        • Ctrl+click: Pan view<br>
+                        • Mouse wheel: Zoom
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button id="clearAll" class="flex-1 bg-red-600 text-white py-2 px-3 rounded-md text-sm hover:bg-red-700 transition-colors">
+                            <i class="fas fa-trash mr-1"></i>Clear All
+                        </button>
+                        <button id="undoBtn" class="bg-gray-600 text-white py-2 px-3 rounded-md text-sm hover:bg-gray-700 transition-colors" title="Undo (Ctrl+Z)">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button id="redoBtn" class="bg-gray-600 text-white py-2 px-3 rounded-md text-sm hover:bg-gray-700 transition-colors" title="Redo (Ctrl+Shift+Z)">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preset Elements -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-cube mr-2 text-orange-600"></i>Preset Elements
+                </h3>
+                <div class="space-y-2" id="presetElements">
+                    <!-- Preset elements will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Rate Settings -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-dollar-sign mr-2 text-green-600"></i>Rate Settings
+                </h3>
+                <button id="rateSettingsBtn" class="w-full bg-purple-600 text-white py-2 px-3 rounded-md text-sm hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-cog mr-1"></i>Configure Rates
+                </button>
+            </div>
+
+            <!-- Project Information -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>Project Information
+                </h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-medium text-gray-700">Client Name:</label>
+                        <input type="text" id="clientName" placeholder="Enter client name" 
+                               class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-700">Project Address:</label>
+                        <textarea id="projectAddress" placeholder="Enter project address" rows="2"
+                                  class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote Panel -->
+            <div class="tool-section">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-gray-800 flex items-center">
+                        <i class="fas fa-calculator mr-2 text-green-600"></i>Project Quote
+                    </h3>
+                    <div class="flex space-x-2">
+                        <button id="generateQuote" class="bg-green-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-green-700 transition-colors">
+                            <i class="fas fa-file-pdf mr-1"></i>PDF
+                        </button>
+                        <button id="exportProject" class="bg-blue-600 text-white py-1.5 px-2 rounded-md text-xs hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-download mr-1"></i>Export
+                        </button>
+                    </div>
+                </div>
+                <div id="quoteContent" class="quote-section space-y-2 text-sm">
+                    <div class="text-gray-500 text-center py-4">
+                        <i class="fas fa-info-circle text-2xl mb-2"></i>
+                        <div>Start drawing to generate quote</div>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t">
+                    <div class="flex justify-between font-semibold text-sm">
+                        <span>Total:</span>
+                        <span id="totalCost" class="text-green-600">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Element List -->
+            <div class="tool-section">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-list mr-2 text-blue-600"></i>Elements List
+                </h3>
+                <div id="elementsList" class="space-y-1 max-h-60 overflow-y-auto text-sm">
+                    <div class="text-gray-500 text-center py-4">
+                        <i class="fas fa-plus-circle text-2xl mb-2"></i>
+                        <div>No elements added yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Settings Modal -->
+    <div id="rateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold flex items-center">
+                            <i class="fas fa-cog mr-2 text-purple-600"></i>
+                            Configure Rates & Options
+                        </h2>
+                        <button id="closeRateModal" class="text-gray-500 hover:text-gray-700 text-2xl transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- State Selection -->
+                    <div class="mb-6">
+                        <label class="text-sm font-medium text-gray-700 mb-2">Select State:</label>
+                        <select id="stateSelect" class="w-full compact-input border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="QLD">Queensland (QLD)</option>
+                            <option value="NSW">New South Wales (NSW)</option>
+                            <option value="VIC">Victoria (VIC)</option>
+                            <option value="SA">South Australia (SA)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Area Elements -->
+                        <div>
+                            <h3 class="font-semibold mb-3 text-green-600">
+                                <i class="fas fa-square mr-1"></i>Area Elements (per m²)
+                            </h3>
+                            <div class="space-y-3" id="areaRates"></div>
+                        </div>
+                        <!-- Linear Elements -->
+                        <div>
+                            <h3 class="font-semibold mb-3 text-blue-600">
+                                <i class="fas fa-minus mr-1"></i>Linear Elements (per m)
+                            </h3>
+                            <div class="space-y-3" id="linearRates"></div>
+                        </div>
+                        <!-- Item Elements -->
+                        <div>
+                            <h3 class="font-semibold mb-3 text-orange-600">
+                                <i class="fas fa-cube mr-1"></i>Item Elements (per unit)
+                            </h3>
+                            <div class="space-y-3" id="itemRates"></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button id="resetRates" class="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-undo mr-1"></i>Reset to Default
+                        </button>
+                        <button id="saveRates" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-save mr-1"></i>Save All Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold flex items-center">
+                            <i class="fas fa-question-circle mr-2 text-blue-600"></i>
+                            Garden Design Pro - Help Guide
+                        </h2>
+                        <button id="closeHelpModal" class="text-gray-500 hover:text-gray-700 text-2xl transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="font-semibold text-lg mb-3 text-green-600">Getting Started</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-sm">
+                                <li>Upload your garden plan image (PDF, JPG, or PNG)</li>
+                                <li>Set the scale by measuring a known distance on your plan</li>
+                                <li>Choose drawing tools to add elements to your design</li>
+                                <li>Configure rates and generate quotes</li>
+                            </ol>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg mb-3 text-blue-600">Drawing Tools</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <h4 class="font-medium mb-2">Area Elements</h4>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Click to start drawing</li>
+                                        <li>Click to add points</li>
+                                        <li>Press Enter or double-click to finish</li>
+                                        <li>Press Backspace to remove last point</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium mb-2">Linear Elements</h4>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Click to start drawing</li>
+                                        <li>Click to add points</li>
+                                        <li>Press Enter or double-click to finish</li>
+                                        <li>Press Backspace to remove last point</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg mb-3 text-purple-600">Keyboard Shortcuts</h3>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <div class="flex justify-between"><span>Enter</span><span>Finish drawing</span></div>
+                                    <div class="flex justify-between"><span>Esc</span><span>Cancel drawing</span></div>
+                                    <div class="flex justify-between"><span>Backspace</span><span>Remove last point</span></div>
+                                    <div class="flex justify-between"><span>Space</span><span>Pan view</span></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between"><span>Mouse wheel</span><span>Zoom</span></div>
+                                    <div class="flex justify-between"><span>Ctrl+click</span><span>Pan view</span></div>
+                                    <div class="flex justify-between"><span>Delete</span><span>Delete selected</span></div>
+                                    <div class="flex justify-between"><span>Ctrl+Z</span><span>Undo</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg mb-3 text-orange-600">Editing Elements</h3>
+                            <ul class="list-disc list-inside space-y-1 text-sm">
+                                <li>Select "Edit Elements" tool to enter edit mode</li>
+                                <li>Click on elements to select them</li>
+                                <li>Drag points to move them</li>
+                                <li>Use the element list to edit or delete elements</li>
+                                <li>Hover over elements to see measurements</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span class="text-gray-700">Processing...</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
