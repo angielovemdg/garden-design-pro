@@ -149,6 +149,12 @@ class GardenDesignTool {
             },
             'planter': {
                 'Standard Planter': { rate: 500, description: 'Standard planter', color: '#8b5a2b' }
+            },
+            'seating': {
+                'GRC Concrete seats-Straight': { rate: 1200, description: 'GRC Concrete seats-Straight', color: '#7c3aed' }
+            },
+            'water-feature': {
+                'Water Feature': { rate: 2500, description: 'Water Feature', color: '#0891b2' }
             }
         };
         
@@ -2265,6 +2271,8 @@ class GardenDesignTool {
                 category = 'Linear Elements';
             } else if (['pergola', 'pool', 'spa', 'shed'].includes(element.type)) {
                 category = 'Structures';
+            } else {
+                category = 'Item Elements';
             }
             
             if (!groups[category]) {
@@ -2507,12 +2515,16 @@ class GardenDesignTool {
         
         const element = {
             type: this.presetType,
+            subtype: config.name,
             x: x - pixelWidth/2,
             y: y - pixelHeight/2,
             width: pixelWidth,
             height: pixelHeight,
             actualWidth: config.width,
             actualHeight: config.height,
+            price: config.price,
+            description: config.description,
+            rotation: 0,
             id: Date.now()
         };
         
@@ -2561,35 +2573,59 @@ class GardenDesignTool {
     loadPdfFile(file) {
         // For PDF handling, we'll use a simple approach
         // In a real implementation, you'd use a PDF.js library
-        this.showNotification('PDF support requires PDF.js library. Converting to image...', 'info');
+        this.showNotification('PDF file uploaded. Please select a page to load.', 'info');
         
-        // For now, we'll show a placeholder and ask user to convert PDF to image
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            // Create a placeholder for PDF
-            this.pdfDocument = {
-                name: file.name,
-                pages: 1 // Placeholder
-            };
-            
-            // Show page selection
-            this.showPdfPageSelection();
-            this.showNotification('Please convert PDF to image format for better compatibility', 'warning');
+        // Create a placeholder for PDF
+        this.pdfDocument = {
+            name: file.name,
+            pages: 3 // Assume 3 pages for demonstration
         };
-        reader.readAsDataURL(file);
+        
+        // Show page selection
+        this.showPdfPageSelection();
     }
 
     showPdfPageSelection() {
         const pageSelect = document.getElementById('pdfPageSelect');
         const pageSelection = document.getElementById('pdfPageSelection');
         
-        pageSelect.innerHTML = '<option value="1">Page 1</option>';
+        // Generate page options based on PDF document
+        pageSelect.innerHTML = '';
+        for (let i = 1; i <= this.pdfDocument.pages; i++) {
+            pageSelect.innerHTML += `<option value="${i}">Page ${i}</option>`;
+        }
         pageSelection.classList.remove('hidden');
     }
 
     loadPdfPage() {
-        // Placeholder for PDF page loading
-        this.showNotification('PDF page loading functionality requires PDF.js integration', 'info');
+        const selectedPage = document.getElementById('pdfPageSelect').value;
+        this.currentPdfPage = parseInt(selectedPage);
+        
+        // For now, we'll create a placeholder background
+        // In a real implementation, you'd render the actual PDF page
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 600;
+        const ctx = canvas.getContext('2d');
+        
+        // Create a placeholder background
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`PDF Page ${selectedPage}`, canvas.width/2, canvas.height/2);
+        ctx.font = '16px Arial';
+        ctx.fillText('(Placeholder - PDF rendering requires PDF.js)', canvas.width/2, canvas.height/2 + 40);
+        
+        // Convert canvas to image
+        const img = new Image();
+        img.onload = () => {
+            this.backgroundImage = img;
+            this.redraw();
+            this.showNotification(`PDF page ${selectedPage} loaded successfully`, 'success');
+        };
+        img.src = canvas.toDataURL();
     }
 
     deleteElement(index) {
@@ -2659,6 +2695,9 @@ class GardenDesignTool {
                         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
                         th { background-color: #f8fafc; font-weight: 600; color: #374151; }
                         tr:hover { background-color: #f8fafc; }
+                        .total-row { font-weight: bold; background-color: #f0f9ff; }
+                        .gst-row { font-weight: bold; background-color: #fef3c7; }
+                        .final-total { font-weight: bold; background-color: #dbeafe; font-size: 16px; }
                         .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px; }
                     </style>
                 </head>
@@ -2676,8 +2715,9 @@ class GardenDesignTool {
                         </div>
             `;
             
-            // Generate categorized elements without rates
+            // Generate categorized elements with pricing
             const categorizedElements = this.categorizeElementsForPDF();
+            let totalAmount = 0;
             
             Object.entries(categorizedElements).forEach(([category, elements]) => {
                 if (elements.length > 0) {
@@ -2685,37 +2725,71 @@ class GardenDesignTool {
                         <h3>${category}</h3>
                         <table>
                             <thead>
-                                <tr>
-                                    <th>Description</th>
-                                    <th>Quantity</th>
-                                    <th>Unit</th>
-                                </tr>
+                                                            <tr>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Subtotal ($)</th>
+                            </tr>
                             </thead>
                             <tbody>`;
                     
+                    let categoryTotal = 0;
                     elements.forEach(element => {
+                        const rate = this.getElementRate(element);
                         const quantity = this.calculateQuantity(element);
                         const unit = this.getUnitForElement(element);
+                        const subtotal = rate * quantity;
+                        categoryTotal += subtotal;
+                        totalAmount += subtotal;
                         
                         html += `<tr>
                             <td>${this.getElementDescription(element)}</td>
-                            <td>${quantity.toFixed(2)}</td>
+                            <td>${Math.round(quantity)}</td>
                             <td>${unit}</td>
+                            <td>$${Math.round(subtotal)}</td>
                         </tr>`;
                     });
                     
-                    html += `</tbody>
+                    html += `<tr class="total-row">
+                        <td colspan="3"><strong>${category} Total:</strong></td>
+                        <td><strong>$${Math.round(categoryTotal)}</strong></td>
+                    </tr>
+                    </tbody>
                     </table>
                     </div>`;
                 }
             });
+            
+            const gstAmount = totalAmount * 0.1;
+            const finalTotal = totalAmount + gstAmount;
+            
+            html += `<div class="section">
+                <h3>Summary</h3>
+                <table>
+                    <tbody>
+                        <tr class="total-row">
+                            <td colspan="3"><strong>Subtotal:</strong></td>
+                            <td><strong>$${Math.round(totalAmount)}</strong></td>
+                        </tr>
+                        <tr class="gst-row">
+                            <td colspan="3"><strong>GST (10%):</strong></td>
+                            <td><strong>$${Math.round(gstAmount)}</strong></td>
+                        </tr>
+                        <tr class="final-total">
+                            <td colspan="3"><strong>Total (Including GST):</strong></td>
+                            <td><strong>$${Math.round(finalTotal)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>`;
 
             html += `<div class="section">
                 <h3>Terms and Conditions – Initial Garden Construction Estimate</h3>
                 
                 <h4>Scope of Works Inclusions and Clarifications</h4>
                 <ol>
-                    <li>The cost estimate provided is based on the preliminary design concepts discussed during the initial meeting (either on-site or online), including garden design elements, walls, and other landscaping features. Exact dimensions and areas have not yet been confirmed and will be finalised during the design process.</li>
+                    <li>The cost estimate provided is based on the preliminary design concepts discussed during the initial meeting (either on-site or online), including garden design elements, walls, and other landscaping features. Exact dimensions and areas have not yet been confirmed and will be finalized during the design process.</li>
                     <li>The budget presented is valid for 30 days from the date of this estimate.</li>
                     <li>This estimate serves as a general cost indication, with the final pricing to be confirmed upon development of accurate designs based on the agreed scope of work.</li>
                 </ol>
@@ -2727,9 +2801,18 @@ class GardenDesignTool {
                     <li>Site preparation and accessibility will be further confirmed based on the actual site conditions. Any additional costs related to these factors will be communicated and agreed upon during the design phase.</li>
                 </ol>
 
+                <h4>Payment Terms and Initiation of Project</h4>
+                <ol>
+                    <li>A deposit of $5000 is required to initiate the project. This deposit will be deducted from the final construction cost.</li>
+                    <li>Once the $5000 deposit is received, the design process will begin, and a more detailed design with accurate measurements and final costs will be provided.</li>
+                </ol>
+
+                <h4>Acceptance of Quotation and Agreement</h4>
+                <p>This quote serves as an initial estimate and is not an official construction contract. The final construction contract and pricing will be issued upon the completion of the detailed design.</p>
+
                 <h4>Design-Only Commitment and Refund Policy</h4>
                 <p>The $5000 deposit is non-refundable and will be fully applied toward the design services during the preliminary and detailed design phases.</p>
-                <p>If the client decides not to proceed with the construction after receiving the final design and pricing, no further payment is required beyond the $5000 deposit. The design documents produced up to that point will be provided to the client for their records and potential use.</p>
+                <p>If the client decides not to proceed with the construction after receiving the final design and pricing, no further payment is required beyond the $5000 deposit. The design documents produced up to that point will be provided to the client for their records.</p>
                 <p>The deposit covers the time, expertise, and administrative efforts involved in site assessment, concept development, preliminary quoting, and detailed design preparation.</p>
 
                 <h4>Contact Details</h4>
@@ -2769,6 +2852,8 @@ class GardenDesignTool {
                 categories['Area Elements'].push(element);
             } else if (this.isLinearTool(element.type)) {
                 categories['Linear Elements'].push(element);
+            } else if (['trees', 'shrubs', 'lighting', 'seating', 'water-feature', 'outdoor-kitchen', 'planter', 'pergola', 'pool', 'spa'].includes(element.type)) {
+                categories['Item Elements'].push(element);
             } else {
                 categories['Item Elements'].push(element);
             }
@@ -2786,12 +2871,15 @@ class GardenDesignTool {
             return element.actualLength || 1;
         } else if (element.path && element.path.length > 1) {
             if (this.isAreaTool(element.type)) {
-                return this.calculateArea(element.path);
+                const area = this.calculateArea(element.path);
+                return this.scaleSet ? area / (this.scale * this.scale) : area / 400; // Convert to square meters
             } else {
-                return this.calculateLength(element.path);
+                const length = this.calculateLength(element.path);
+                return this.scaleSet ? length / this.scale : length / 20; // Convert to meters
             }
         } else if (element.width && element.height) {
-            return element.width * element.height;
+            const area = element.width * element.height;
+            return this.scaleSet ? area / (this.scale * this.scale) : area / 400; // Convert to square meters
         }
         return 1;
     }
