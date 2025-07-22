@@ -32,6 +32,7 @@ class GardenDesignTool {
         this.scaleInputMode = false;
         this.subtractMode = false;
         this.eraserMode = false;
+        this.deductMode = false;
         this.pdfDocument = null;
         this.currentPdfPage = 0;
         this.selectedState = 'QLD';
@@ -407,6 +408,12 @@ class GardenDesignTool {
                     }
                 }
                 break;
+            case 'd':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    this.toggleDeductMode();
+                }
+                break;
         }
     }
 
@@ -647,7 +654,7 @@ class GardenDesignTool {
         const indicator = document.getElementById('editModeIndicator');
         
         // Clear all modes
-        container.classList.remove('edit-mode', 'hand-mode', 'ruler-mode', 'subtract-mode', 'eraser-mode');
+        container.classList.remove('edit-mode', 'hand-mode', 'ruler-mode', 'subtract-mode', 'eraser-mode', 'deduct-mode');
         
         if (this.editMode) {
             container.classList.add('edit-mode');
@@ -664,6 +671,9 @@ class GardenDesignTool {
             this.canvas.style.cursor = 'crosshair';
         } else if (this.eraserMode) {
             container.classList.add('eraser-mode');
+            this.canvas.style.cursor = 'crosshair';
+        } else if (this.deductMode) {
+            container.classList.add('deduct-mode');
             this.canvas.style.cursor = 'crosshair';
         } else {
             indicator.classList.add('hidden');
@@ -699,7 +709,17 @@ class GardenDesignTool {
         this.updateDrawingStatus();
         
         if (this.eraserMode) {
-            this.showNotification('Eraser tool activated - Click on elements to delete them', 'info');
+            this.showNotification('Eraser tool activated - Click on elements to delete them. Right-click to exit eraser mode.', 'info');
+        }
+    }
+
+    toggleDeductMode() {
+        this.deductMode = !this.deductMode;
+        this.updateEditMode();
+        this.updateDrawingStatus();
+        
+        if (this.deductMode) {
+            this.showNotification('Deduct mode activated - Draw areas to subtract from existing areas. Press Ctrl+D to exit.', 'info');
         }
     }
 
@@ -853,6 +873,17 @@ class GardenDesignTool {
     }
 
     handleMouseDown(e) {
+        // Handle right-click
+        if (e.button === 2) {
+            e.preventDefault();
+            if (this.eraserMode) {
+                this.toggleEraserTool(); // Exit eraser mode
+            } else {
+                this.cancelDrawing();
+            }
+            return;
+        }
+        
         if (e.button === 1 || (e.button === 0 && (e.ctrlKey || this.handMode))) {
             this.isPanning = true;
             this.lastPanPoint = { x: e.clientX, y: e.clientY };
@@ -986,6 +1017,15 @@ class GardenDesignTool {
             if (!this.isDrawing) {
                 this.startArea(x, y);
             } else {
+                // Check if point is close to the first point to auto-close
+                if (this.currentPath.length > 2) {
+                    const firstPoint = this.currentPath[0];
+                    const distance = Math.sqrt((x - firstPoint.x) ** 2 + (y - firstPoint.y) ** 2);
+                    if (distance < 20 / this.zoom) { // 20 pixels threshold
+                        this.finishDrawing();
+                        return;
+                    }
+                }
                 this.currentPath.push({x, y});
                 this.redraw();
             }
@@ -997,6 +1037,26 @@ class GardenDesignTool {
             if (!this.isDrawing) {
                 this.startSubtractArea(x, y);
             } else {
+                this.currentPath.push({x, y});
+                this.redraw();
+            }
+            return;
+        }
+
+        // Handle deduct mode
+        if (this.deductMode) {
+            if (!this.isDrawing) {
+                this.startDeductArea(x, y);
+            } else {
+                // Check if point is close to the first point to auto-close
+                if (this.currentPath.length > 2) {
+                    const firstPoint = this.currentPath[0];
+                    const distance = Math.sqrt((x - firstPoint.x) ** 2 + (y - firstPoint.y) ** 2);
+                    if (distance < 20 / this.zoom) { // 20 pixels threshold
+                        this.finishDeductArea();
+                        return;
+                    }
+                }
                 this.currentPath.push({x, y});
                 this.redraw();
             }
@@ -1173,6 +1233,74 @@ class GardenDesignTool {
             this.updateDrawingStatus();
         }
         this.redraw();
+    }
+
+    startDeductArea(x, y) {
+        this.isDrawing = true;
+        this.currentPath = [{x, y}];
+        this.currentTool = 'deduct';
+        this.updateDrawingStatus();
+        this.redraw();
+    }
+
+    finishDeductArea() {
+        if (this.currentPath.length > 2) {
+            this.saveState();
+            
+            // Find the area element to deduct from
+            const deductFrom = this.findAreaToDeductFrom();
+            if (deductFrom) {
+                // Create a new element with the deducted area
+                const deductedElement = {
+                    ...deductFrom,
+                    path: this.subtractPolygons(deductFrom.path, this.currentPath),
+                    id: Date.now()
+                };
+                
+                // Remove the original element and add the deducted one
+                const index = this.elements.indexOf(deductFrom);
+                this.elements.splice(index, 1);
+                this.elements.push(deductedElement);
+                
+                this.showNotification('Area deducted successfully', 'success');
+            } else {
+                this.showNotification('No area element found to deduct from', 'warning');
+            }
+        }
+        
+        this.isDrawing = false;
+        this.currentPath = [];
+        this.updateDrawingStatus();
+        this.redraw();
+        this.updateQuote();
+    }
+
+    findAreaToDeductFrom() {
+        // Find the first area element that contains the center of the deduct path
+        const centerX = this.currentPath.reduce((sum, p) => sum + p.x, 0) / this.currentPath.length;
+        const centerY = this.currentPath.reduce((sum, p) => sum + p.y, 0) / this.currentPath.length;
+        
+        return this.elements.find(element => 
+            this.isAreaTool(element.type) && 
+            this.pointInPolygon(centerX, centerY, element.path)
+        );
+    }
+
+    subtractPolygons(originalPath, deductPath) {
+        // Simple polygon subtraction - this is a basic implementation
+        // For more complex cases, you might want to use a library like clipper.js
+        
+        // For now, we'll create a new path that excludes the deducted area
+        // This is a simplified approach - in practice, you'd want proper polygon clipping
+        
+        const result = [...originalPath];
+        
+        // Add the deduct path in reverse to create a "hole"
+        for (let i = deductPath.length - 1; i >= 0; i--) {
+            result.push(deductPath[i]);
+        }
+        
+        return result;
     }
 
     addLinePoint(x, y) {
@@ -2516,88 +2644,80 @@ class GardenDesignTool {
             let html = `
                 <html>
                 <head>
-                    <title>Garden Cost Estimation Proposal</title>
+                    <title>Initial Garden Construction Estimate</title>
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-                        .section { margin-bottom: 20px; }
-                        .section h3 { border-bottom: 1px solid #333; padding-bottom: 5px; color: #2563eb; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #f8fafc; font-weight: bold; }
-                        .total { font-size: 18px; font-weight: bold; text-align: right; margin-top: 20px; padding: 10px; background-color: #f0f9ff; border: 1px solid #0ea5e9; }
-                        .project-info { background-color: #f8fafc; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+                        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #0ea5e9; padding-bottom: 20px; }
+                        .header h1 { color: #1e40af; margin: 0; font-size: 28px; }
+                        .header p { color: #64748b; margin: 5px 0; }
                         .client-info { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0ea5e9; }
+                        .section { margin-bottom: 25px; }
+                        .section h3 { color: #1e40af; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; }
+                        .section h4 { color: #374151; margin-top: 20px; margin-bottom: 10px; }
+                        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #374151; }
+                        tr:hover { background-color: #f8fafc; }
+                        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px; }
                     </style>
                 </head>
                 <body>
-                    <div class="header">
-                        <h1>Garden Cost Estimation Proposal</h1>
-                        <p>Date: ${new Date().toLocaleDateString()}</p>
-                        <p>Project: Garden Design Pro</p>
-                    </div>
-                    
-                    <div class="client-info">
-                        <h3>Client Information</h3>
-                        <p><strong>Client Name:</strong> ${clientName}</p>
-                        <p><strong>Project Address:</strong> ${projectAddress}</p>
-                    </div>
-                    
-                    <div class="project-info">
-                        <h3>Project Summary</h3>
-                        <p>Total Elements: ${this.elements.length}</p>
-                        <p>Scale: ${this.scaleSet ? `1:${Math.round(1/this.scale * 1000)}` : 'Not set'}</p>
-                    </div>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Initial Garden Construction Estimate</h1>
+                            <p>Date: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                        
+                        <div class="client-info">
+                            <h3>Client Information</h3>
+                            <p><strong>Client Name:</strong> ${clientName}</p>
+                            <p><strong>Project Address:</strong> ${projectAddress}</p>
+                        </div>
             `;
             
-            // Generate elements list without rates
-            let elementsList = '';
-            this.elements.forEach((element, index) => {
-                const measurement = this.calculateMeasurement(element);
-                const description = this.getElementDescription(element);
-                
-                elementsList += `<tr>
-                    <td>${description}</td>
-                    <td>${measurement}</td>
-                </tr>`;
+            // Generate categorized elements without rates
+            const categorizedElements = this.categorizeElementsForPDF();
+            
+            Object.entries(categorizedElements).forEach(([category, elements]) => {
+                if (elements.length > 0) {
+                    html += `<div class="section">
+                        <h3>${category}</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Quantity</th>
+                                    <th>Unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                    
+                    elements.forEach(element => {
+                        const quantity = this.calculateQuantity(element);
+                        const unit = this.getUnitForElement(element);
+                        
+                        html += `<tr>
+                            <td>${this.getElementDescription(element)}</td>
+                            <td>${quantity.toFixed(2)}</td>
+                            <td>${unit}</td>
+                        </tr>`;
+                    });
+                    
+                    html += `</tbody>
+                    </table>
+                    </div>`;
+                }
             });
-            
-            html += `<div class="section">
-                <h3>Project Elements</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Measurement</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${elementsList}
-                    </tbody>
-                </table>
-            </div>`;
-            
-            html += `<div class="section">
-                <h3>Notes</h3>
-                <p>This is a preliminary cost estimation based on the garden design elements. 
-                Final pricing may vary based on site conditions, material availability, and specific requirements.</p>
-                <p>For detailed pricing and to proceed with the project, please contact us for a comprehensive quote.</p>
-            </div>
 
-            <div class="section">
+            html += `<div class="section">
                 <h3>Terms and Conditions – Initial Garden Construction Estimate</h3>
                 
                 <h4>Scope of Works Inclusions and Clarifications</h4>
                 <ol>
-                    <li>The cost estimate provided is based on the preliminary design concepts discussed during the initial meeting (either on-site or online), including garden design elements, walls, and other landscaping features. Exact dimensions and areas have not yet been confirmed and will be finalized during the design process.</li>
+                    <li>The cost estimate provided is based on the preliminary design concepts discussed during the initial meeting (either on-site or online), including garden design elements, walls, and other landscaping features. Exact dimensions and areas have not yet been confirmed and will be finalised during the design process.</li>
                     <li>The budget presented is valid for 30 days from the date of this estimate.</li>
                     <li>This estimate serves as a general cost indication, with the final pricing to be confirmed upon development of accurate designs based on the agreed scope of work.</li>
-                </ol>
-
-                <h4>Payment Terms and Initiation of Project</h4>
-                <ol>
-                    <li>A deposit of 15% of the total proposed project cost is required to initiate the project. This deposit will be deducted from the final construction cost.</li>
-                    <li>Once the 15% deposit is received, the design process will begin, and a more detailed design with accurate measurements and final costs will be provided.</li>
                 </ol>
 
                 <h4>Variations and Adjustments</h4>
@@ -2607,12 +2727,10 @@ class GardenDesignTool {
                     <li>Site preparation and accessibility will be further confirmed based on the actual site conditions. Any additional costs related to these factors will be communicated and agreed upon during the design phase.</li>
                 </ol>
 
-                <h4>Acceptance of Quotation and Agreement</h4>
-                <ol>
-                    <li>This quote serves as an initial estimate and is not an official construction contract. The final construction contract and pricing will be issued upon the completion of the detailed design.</li>
-                    <li>The client is required to sign the <strong>Expression of Interest (EOI)</strong> and submit the 15% deposit to confirm agreement with the initial estimate and to proceed with the design phase.</li>
-                    <li>Once the 15% deposit is paid, the design process will commence, and a formal, detailed design along with the final construction cost will be issued.</li>
-                </ol>
+                <h4>Design-Only Commitment and Refund Policy</h4>
+                <p>The $5000 deposit is non-refundable and will be fully applied toward the design services during the preliminary and detailed design phases.</p>
+                <p>If the client decides not to proceed with the construction after receiving the final design and pricing, no further payment is required beyond the $5000 deposit. The design documents produced up to that point will be provided to the client for their records and potential use.</p>
+                <p>The deposit covers the time, expertise, and administrative efforts involved in site assessment, concept development, preliminary quoting, and detailed design preparation.</p>
 
                 <h4>Contact Details</h4>
                 <p><strong>Company:</strong> Mood Design Group</p>
@@ -2635,8 +2753,61 @@ class GardenDesignTool {
             newWindow.print();
             
             this.showLoading(false);
-            this.showNotification('PDF quote generated successfully', 'success');
+            this.showNotification('PDF estimate generated successfully', 'success');
         }, 1000);
+    }
+
+    categorizeElementsForPDF() {
+        const categories = {
+            'Area Elements': [],
+            'Linear Elements': [],
+            'Item Elements': []
+        };
+        
+        this.elements.forEach(element => {
+            if (this.isAreaTool(element.type)) {
+                categories['Area Elements'].push(element);
+            } else if (this.isLinearTool(element.type)) {
+                categories['Linear Elements'].push(element);
+            } else {
+                categories['Item Elements'].push(element);
+            }
+        });
+        
+        return categories;
+    }
+
+    calculateQuantity(element) {
+        if (element.type === 'trees' || element.type === 'shrubs' || element.type === 'lighting' || 
+            element.type === 'seating' || element.type === 'water-feature' || element.type === 'outdoor-kitchen' || 
+            element.type === 'planter') {
+            return 1; // Unit items
+        } else if (element.type === 'stairs') {
+            return element.actualLength || 1;
+        } else if (element.path && element.path.length > 1) {
+            if (this.isAreaTool(element.type)) {
+                return this.calculateArea(element.path);
+            } else {
+                return this.calculateLength(element.path);
+            }
+        } else if (element.width && element.height) {
+            return element.width * element.height;
+        }
+        return 1;
+    }
+
+    getUnitForElement(element) {
+        if (element.type === 'trees' || element.type === 'shrubs' || element.type === 'lighting' || 
+            element.type === 'seating' || element.type === 'water-feature' || element.type === 'outdoor-kitchen' || 
+            element.type === 'planter') {
+            return 'unit';
+        } else if (element.type === 'stairs') {
+            return 'm';
+        } else if (this.isAreaTool(element.type)) {
+            return 'm²';
+        } else {
+            return 'm';
+        }
     }
 
     exportProject() {
